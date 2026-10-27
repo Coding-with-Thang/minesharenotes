@@ -1,0 +1,84 @@
+// use prisma-8
+
+model User {
+  id           Uuid              @id @onCreate(uuid())
+  email        String            @unique
+  passwordHash String
+  name         String
+  timezone     String            @default("UTC")
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+  notes        Note[]
+  tasks        Task[]
+  sessions     Session[]
+  categories   Category[]
+  images       NoteImage[]
+}
+
+model Session {
+  id        Uuid              @id @onCreate(uuid())
+  userId    Uuid
+  expiresAt TimestamptzString
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Category {
+  id        Uuid              @id @onCreate(uuid())
+  userId    Uuid
+  name      String
+  createdAt TimestamptzString @default(now())
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     Note[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Note {
+  id         Uuid              @id @onCreate(uuid())
+  userId     Uuid
+  categoryId Uuid?
+  title      String
+  content    Jsonb
+  plainText  String            @default("")
+  createdAt  TimestamptzString @default(now())
+  updatedAt  temporal.updatedAtString()
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  images     NoteImage[]
+
+  @@index([userId, updatedAt])
+  @@index([categoryId])
+}
+
+model NoteImage {
+  id          Uuid              @id @onCreate(uuid())
+  userId      Uuid
+  noteId      Uuid
+  contentType String
+  data        Bytes
+  createdAt   TimestamptzString @default(now())
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note        Note              @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([noteId])
+}
+
+model Task {
+  id             Uuid               @id @onCreate(uuid())
+  userId         Uuid
+  title          String
+  description    String?
+  dueAt          TimestamptzString
+  completedAt    TimestamptzString?
+  reminderSentAt TimestamptzString?
+  tags           String[]           @default([])
+  createdAt      TimestamptzString  @default(now())
+  updatedAt      temporal.updatedAtString()
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueAt])
+}
