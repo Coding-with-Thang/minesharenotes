@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { createNote, listCategories, listNotes } from "@/app/actions/notes";
+import { CategoryGroup } from "@/components/category-group";
 import { CategoryMenu } from "@/components/category-menu";
 import { NoteSearch } from "@/components/note-search";
 import { requireUser } from "@/lib/auth";
-import { matchingCategory, withNoteFilters } from "@/lib/note-filters";
+import { groupNotesByCategory, matchingCategory, withNoteFilters } from "@/lib/note-filters";
 import { formatWhen, reminderStatus } from "@/lib/time";
 import { listTasks } from "@/app/actions/tasks";
-
-function categoryLabel(name: string): string {
-  const code = name.match(/^([A-Za-z]+-\d+)/);
-  return code?.[1] ?? name;
-}
 
 function formatNoteTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -56,9 +52,7 @@ export async function WorkspaceSplit({
     if (selected) return note.categoryId === selected;
     return true;
   });
-
-  // Map category id → name for note card badges
-  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+  const noteGroups = groupNotesByCategory(visibleNotes, categories);
 
   return (
     <div className="workspace-layout">
@@ -119,7 +113,6 @@ export async function WorkspaceSplit({
 
           <CategoryMenu category={selected} query={query} categories={categories} />
 
-          {/* Note list */}
           {visibleNotes.length === 0 ? (
             <p className="sidebar-empty">
               {query
@@ -129,31 +122,33 @@ export async function WorkspaceSplit({
                   : "No notes yet."}
             </p>
           ) : (
-            <ul className="note-card-list">
-              {visibleNotes.map((note) => {
-                const categoryName = note.categoryId ? categoryMap.get(note.categoryId) : null;
-                return (
-                  <li key={note.id}>
-                    <Link
-                      href={withNoteFilters(`/notes/${note.id}`, query, selected)}
-                      className={`note-card ${note.id === activeNoteId ? "note-card-active" : ""}`}
-                    >
-                      <div className="note-card-top">
-                        <span className="note-card-title">{note.title}</span>
-                        <span className="note-card-time">{formatNoteTime(note.updatedAt)}</span>
-                      </div>
-                      {categoryName ? (
-                        <div className="note-card-footer">
-                          <span className="note-tag" title={categoryName}>
-                            {categoryLabel(categoryName)}
-                          </span>
-                        </div>
-                      ) : null}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="category-groups">
+              {noteGroups.map((group) => (
+                <CategoryGroup
+                  key={group.id}
+                  id={group.id}
+                  name={group.name}
+                  count={group.notes.length}
+                  variant="sidebar"
+                >
+                  <ul className="category-group-notes">
+                    {group.notes.map((note) => (
+                      <li key={note.id}>
+                        <Link
+                          href={withNoteFilters(`/notes/${note.id}`, query, selected)}
+                          className={`note-card ${note.id === activeNoteId ? "note-card-active" : ""}`}
+                        >
+                          <div className="note-card-top">
+                            <span className="note-card-title">{note.title}</span>
+                            <span className="note-card-time">{formatNoteTime(note.updatedAt)}</span>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </CategoryGroup>
+              ))}
+            </div>
           )}
         </div>
 
