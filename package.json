@@ -10,6 +10,8 @@
     "contract:emit": "prisma contract emit"
   },
   "dependencies": {
+    "@neon/config": "^1.9.5",
+    "@neon/env": "^1.6.6",
     "@prisma/orm-postgres": "^8.0.0-rc.20",
     "@tiptap/extension-image": "^3.32.0",
     "@tiptap/extension-link": "^3.32.0",
@@ -17,11 +19,13 @@
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
+    "@vercel/functions": "^3.10.4",
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.9",
     "next": "16.4.3",
     "next-auth": "^5.0.0-beta.31",
     "nodemailer": "^7.0.13",
+    "pg": "^8.22.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1"
@@ -32,6 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.2",
+    "@types/pg": "^8.20.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "embedded-postgres": "^18.4.0-beta.17",
