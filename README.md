@@ -1,36 +1,21 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mineshare
 
-## Getting Started
+Notes and a task schedule. Sign in on any device. A daily email lists overdue tasks and tasks due today.
 
-First, run the development server:
+## Local setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Create a Postgres database (Neon Free, or any Postgres 15+).
+2. Copy `.env.example` to `.env` and fill in `DATABASE_URL`, `DIRECT_URL`, and `AUTH_SECRET`.
+3. Apply the schema: `npx prisma db migrate`
+4. Start the app: `npm run dev`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Gmail reminders need `SMTP_USER`, `SMTP_PASS` (an app password), `EMAIL_FROM`, and `CRON_SECRET`. Without those, notes and tasks still work. The digest route returns an error until mail is configured.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy on Vercel Hobby
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push the repo to GitHub and import it into a Vercel Hobby project. Keep the free `*.vercel.app` address.
+2. Create one Neon Free project. Put the pooled connection string in `DATABASE_URL` and the direct string in `DIRECT_URL`.
+3. Set `AUTH_SECRET`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, and `CRON_SECRET` in the Vercel project.
+4. Deploy. The build emits the Prisma contract and runs migrations.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The cron job runs once a day at 12:00 UTC and emails each user about tasks that are overdue or due that day in their timezone. Vercel Hobby cannot run the job more often than once a day.
