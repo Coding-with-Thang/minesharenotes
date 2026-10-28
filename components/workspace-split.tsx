@@ -4,7 +4,11 @@ import { CategoryGroup } from "@/components/category-group";
 import { CategoryMenu } from "@/components/category-menu";
 import { NoteSearch } from "@/components/note-search";
 import { requireUser } from "@/lib/auth";
-import { groupNotesByCategory, matchingCategory, withNoteFilters } from "@/lib/note-filters";
+import {
+  groupNotesByCategory,
+  matchingCategory,
+  withNoteFilters,
+} from "@/lib/note-filters";
 import { formatWhen, reminderStatus } from "@/lib/time";
 import { listTasks } from "@/app/actions/tasks";
 
@@ -15,12 +19,21 @@ function formatNoteTime(iso: string): string {
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(iso));
   }
   const days = Math.floor(hours / 24);
   if (days === 1) return "Yesterday";
-  if (days < 7) return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(new Date(iso));
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(iso));
+  if (days < 7)
+    return new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(
+      new Date(iso),
+    );
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(iso));
 }
 
 export async function WorkspaceSplit({
@@ -58,7 +71,6 @@ export async function WorkspaceSplit({
     <div className="workspace-layout">
       {/* ── Left sidebar ── */}
       <aside className="workspace-sidebar">
-
         {/* ── Reminders panel ── */}
         <div className="sidebar-card reminders-panel">
           <div className="sidebar-card-header">
@@ -72,7 +84,11 @@ export async function WorkspaceSplit({
               active.map((task) => (
                 <li key={task.id}>
                   <Link
-                    href={withNoteFilters(`/reminders/${task.id}`, query, selected)}
+                    href={withNoteFilters(
+                      `/reminders/${task.id}`,
+                      query,
+                      selected,
+                    )}
                     className={`reminder-card-item ${task.id === activeReminderId ? "reminder-card-active" : ""}`}
                   >
                     <span className="reminder-circle" aria-hidden="true" />
@@ -111,7 +127,11 @@ export async function WorkspaceSplit({
 
           <NoteSearch key={query} query={query} />
 
-          <CategoryMenu category={selected} query={query} categories={categories} />
+          <CategoryMenu
+            category={selected}
+            query={query}
+            categories={categories}
+          />
 
           {visibleNotes.length === 0 ? (
             <p className="sidebar-empty">
@@ -135,12 +155,20 @@ export async function WorkspaceSplit({
                     {group.notes.map((note) => (
                       <li key={note.id}>
                         <Link
-                          href={withNoteFilters(`/notes/${note.id}`, query, selected)}
+                          href={withNoteFilters(
+                            `/notes/${note.id}`,
+                            query,
+                            selected,
+                          )}
                           className={`note-card ${note.id === activeNoteId ? "note-card-active" : ""}`}
                         >
                           <div className="note-card-top">
-                            <span className="note-card-title">{note.title}</span>
-                            <span className="note-card-time">{formatNoteTime(note.updatedAt)}</span>
+                            <span className="note-card-title">
+                              {note.title}
+                            </span>
+                            <span className="note-card-time">
+                              {formatNoteTime(note.updatedAt)}
+                            </span>
                           </div>
                         </Link>
                       </li>
@@ -150,12 +178,6 @@ export async function WorkspaceSplit({
               ))}
             </div>
           )}
-        </div>
-
-        <div className="sidebar-statusbar">
-          <span className="status-dot" aria-hidden="true" />
-          <span>Synced locally</span>
-          <span className="status-version">v2.4.8</span>
         </div>
       </aside>
 

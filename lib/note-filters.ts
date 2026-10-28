@@ -1,6 +1,7 @@
 export type NoteSearchParams = {
   q?: string | string[];
   category?: string | string[];
+  edit?: string | string[];
 };
 
 export function noteFilters(params: NoteSearchParams) {

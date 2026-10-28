@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Image } from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import { saveNote } from "@/app/actions/notes";
 import { imageFileList, imageFiles, insertUploadedImages } from "@/components/note-images";
+import { noteTitle } from "@/lib/validators";
 import type { JSONContent } from "@tiptap/core";
 import type { NoteContent } from "@/lib/validators";
 
@@ -18,6 +21,7 @@ export function NoteEditor({
   categories = [],
   categoryId = null,
   editToggleId,
+  startEditing = false,
 }: {
   id: string;
   initialTitle: string;
@@ -26,15 +30,26 @@ export function NoteEditor({
   categories?: { id: string; name: string }[];
   categoryId?: string | null;
   editToggleId?: string;
+  startEditing?: boolean;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
+  const router = useRouter();
+  const [isEditing, setIsEditing] = useState(startEditing);
   const [title, setTitle] = useState(initialTitle);
   const [status, setStatus] = useState("Saved");
   const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
+  const [showSavedAt, setShowSavedAt] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
   const titleRef = useRef(initialTitle);
+  const savedTitle = useRef(initialTitle);
+  const baseline = useRef<string | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSeq = useRef(0);
+  const editGen = useRef(0);
+  const lastSeen = useRef<string | null>(null);
+  const didFocus = useRef(false);
+  const saveRef = useRef<() => void>(() => {});
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -68,49 +83,48 @@ export function NoteEditor({
         return true;
       },
     },
+    onCreate: ({ editor: current }) => {
+      baseline.current = JSON.stringify(current.getJSON());
+    },
     onUpdate: ({ editor: current }) => {
-      queueSave(current.getJSON() as NoteContent, current.getText());
+      syncDirty(JSON.stringify(current.getJSON()));
     },
   });
 
-  // Sync editable state when isEditing changes
-  useEffect(() => {
-    if (editor) {
-      editor.setEditable(isEditing);
+  function syncDirty(contentJson: string | null) {
+    const contentChanged =
+      baseline.current !== null && contentJson !== null && contentJson !== baseline.current;
+    const titleChanged = titleRef.current !== savedTitle.current;
+    const changed = contentChanged || titleChanged;
+    const signature = `${titleRef.current}\n${contentJson ?? ""}`;
+    if (signature !== lastSeen.current) {
+      lastSeen.current = signature;
+      if (changed) editGen.current += 1;
     }
-  }, [editor, isEditing]);
-
-  // Listen for the label click (edit toggle)
-  useEffect(() => {
-    if (!editToggleId) return;
-    const el = document.getElementById(editToggleId);
-    if (!el) return;
-    const handler = () => {
-      setIsEditing((value) => {
-        const next = !value;
-        el.setAttribute("aria-pressed", String(next));
-        return next;
-      });
-    };
-    el.addEventListener("click", handler);
-    return () => el.removeEventListener("click", handler);
-  }, [editToggleId]);
-
-  function queueSave(content: NoteContent, plainText: string) {
-    if (timer.current) clearTimeout(timer.current);
-    setStatus("Unsaved");
-    timer.current = setTimeout(() => {
-      void persist(content, plainText);
-    }, 700);
+    setDirty(changed);
+    setStatus((current) => (current === "Saving…" ? current : changed ? "Unsaved" : "Saved"));
   }
 
-  async function persist(content: NoteContent, plainText: string) {
+  function updateTitle(value: string) {
+    titleRef.current = value;
+    setTitle(value);
+    const contentJson = editor ? JSON.stringify(editor.getJSON()) : baseline.current;
+    syncDirty(contentJson);
+  }
+
+  async function save() {
+    const current = editor;
+    if (!current || !dirty || status === "Saving…") return;
+    const gen = editGen.current;
     const seq = ++saveSeq.current;
+    const titleAtSave = titleRef.current;
+    const contentJson = JSON.stringify(current.getJSON());
+    const plainText = current.getText();
     setStatus("Saving…");
     const result = await saveNote({
       id,
-      title: titleRef.current,
-      content: JSON.stringify(content),
+      title: titleAtSave,
+      content: contentJson,
       plainText,
     });
     if (seq !== saveSeq.current) return;
@@ -118,22 +132,107 @@ export function NoteEditor({
       setStatus(result.error);
       return;
     }
+    const stored = noteTitle(titleAtSave);
+    savedTitle.current = stored;
+    baseline.current = contentJson;
+    if (titleRef.current === titleAtSave) {
+      titleRef.current = stored;
+      setTitle(stored);
+    }
     if (result.updatedAt) setUpdatedAt(result.updatedAt);
-    setStatus("Saved");
+    const stillEditing = editGen.current !== gen || titleRef.current !== stored;
+    setDirty(stillEditing);
+    setStatus(stillEditing ? "Unsaved" : "Saved");
+    router.refresh();
   }
 
-  useEffect(() => {
-    titleRef.current = title;
-  }, [title]);
+  saveRef.current = () => {
+    void save();
+  };
 
   useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
+    setActionSlot(document.getElementById(`note-actions-${id}`));
+  }, [id]);
+
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(isEditing);
+  }, [editor, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing || !startEditing || didFocus.current) return;
+    const input = titleInputRef.current;
+    if (!input) return;
+    didFocus.current = true;
+    input.focus();
+    input.select();
+  }, [isEditing, startEditing]);
+
+  useEffect(() => {
+    if (!editToggleId) return;
+    const el = document.getElementById(editToggleId);
+    if (!el) return;
+    el.setAttribute("aria-pressed", String(isEditing));
+    const handler = () => setIsEditing((value) => !value);
+    el.addEventListener("click", handler);
+    return () => el.removeEventListener("click", handler);
+  }, [editToggleId, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        saveRef.current();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    function onLeave(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty]);
+
+  useEffect(() => {
+    setShowSavedAt(true);
   }, []);
+
+  const routineStatus = status === "Saved" || status === "Saving…" || status === "Unsaved";
+  const saveButton = (
+    <button
+      type="button"
+      className="note-save-btn"
+      onClick={() => saveRef.current()}
+      disabled={!dirty || status === "Saving…"}
+      aria-live="polite"
+    >
+      {status === "Saving…" ? "Saving…" : dirty ? "Save" : "Saved"}
+    </button>
+  );
 
   return (
     <div className="note-editor-wrap">
+      {isEditing ? (
+        <input
+          ref={titleInputRef}
+          className="note-detail-title note-title-input"
+          value={title}
+          aria-label="Note title"
+          placeholder="Untitled"
+          onChange={(event) => updateTitle(event.target.value)}
+        />
+      ) : (
+        <h1 className="note-detail-title">{title.trim() || "Untitled"}</h1>
+      )}
+      <hr className="note-detail-divider" />
+      {isEditing && actionSlot ? createPortal(saveButton, actionSlot) : null}
       {isEditing && (
         <>
           <div className="note-editor-toolbar">
@@ -174,8 +273,11 @@ export function NoteEditor({
               onClick={() => fileInput.current?.click()}
             />
             <span className="note-save-status" aria-live="polite">
-              {status}
-              {updatedAt ? ` · ${new Date(updatedAt).toLocaleString()}` : ""}
+              {status === "Uploading image…" ? status : null}
+              {!routineStatus ? status : null}
+              {status === "Saved" && showSavedAt && updatedAt
+                ? new Date(updatedAt).toLocaleString()
+                : null}
             </span>
           </div>
           <input

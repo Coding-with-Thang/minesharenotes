@@ -949,6 +949,49 @@ body {
   background: var(--color-paper);
 }
 
+.note-save-btn {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: var(--color-accent);
+  color: #f4fff9;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.875rem;
+  font-family: inherit;
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.note-save-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.note-save-btn:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.note-title-input {
+  display: block;
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.note-title-input:focus {
+  outline: none;
+}
+.note-title-input::placeholder {
+  color: var(--color-muted);
+}
+
 .note-detail-meta {
   display: flex;
   align-items: center;

@@ -47,7 +47,9 @@ export async function createNote(formData: FormData) {
       plainText: "",
     }),
   );
-  redirect(category?.id ? `/notes/${note.id}?category=${encodeURIComponent(category.id)}` : `/notes/${note.id}`);
+  const params = new URLSearchParams({ edit: "1" });
+  if (category?.id) params.set("category", category.id);
+  redirect(`/notes/${note.id}?${params}`);
 }
 
 export async function createCategory(
@@ -134,6 +136,7 @@ export async function saveNote(input: {
   );
 
   if (!updated) return { error: "This note is no longer available." };
+  revalidateNotes();
   return { updatedAt: updated.updatedAt };
 }
 

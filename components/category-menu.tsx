@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { withNoteFilters } from "@/lib/note-filters";
 
 export function CategoryMenu({
@@ -14,14 +15,33 @@ export function CategoryMenu({
   categories: { id: string; name: string }[];
 }) {
   const pathname = usePathname();
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const current =
     category === "none"
       ? "Uncategorized"
       : (categories.find((item) => item.id === category)?.name ?? "All notes");
 
+  useEffect(() => {
+    const details = detailsRef.current;
+    if (!details) return;
+
+    function closeIfOutside(event: PointerEvent) {
+      if (!details?.open) return;
+      if (event.target instanceof Node && details.contains(event.target)) return;
+      details.open = false;
+    }
+
+    document.addEventListener("pointerdown", closeIfOutside);
+    return () => document.removeEventListener("pointerdown", closeIfOutside);
+  }, []);
+
+  useEffect(() => {
+    if (detailsRef.current) detailsRef.current.open = false;
+  }, [pathname, category, query]);
+
   return (
     <div className="category-dropdown-wrap">
-      <details className="category-menu">
+      <details ref={detailsRef} className="category-menu">
         <summary className="category-dropdown-trigger">
           <span className="truncate">{current}</span>
           <span aria-hidden="true">▾</span>
